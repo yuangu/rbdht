@@ -9,10 +9,23 @@ class Peer
 		@port  = port
 		@trans = {}
 		@trans_id_pos = [00, 00]
+		setLastTime
 	end
    
+	def setLastTime 
+		@lastTime = Time.now.to_i #上次通信时间
+	end
+	
+	def isUpdate
+		@trans.each do |k, v|
+			if Time.now.to_i - v["access_time"] > 20 then   #放弃20秒还没有返回的包
+				del_tarns(k)
+			end
+		end
 
-	private
+		return (Time.now.to_i -  @lastTime ) > (60*15)  #15分钟后，就认为这个结点无效
+	end
+
 
      def  add_trans(name, info_hash = nil)		
 	trans_id = get_trans_id
@@ -24,6 +37,12 @@ class Peer
         return trans_id
      end
 	
+	def get_trans(trans_id )
+			ret =	@trans[trans_id]
+			del_tarns(trans_id)
+			return ret 
+	end
+
      def del_tarns(trans_id)
 	@trans.delete(trans_id)
      end
@@ -41,11 +60,15 @@ class Peer
 	 return @trans_id_pos.pack("c*")
      end
 
-     def sendmessage(message, sock, info_hash = nil)
+     def sendmessage(message, sock, info_hash = nil, is_boot = false)
 		if sock then
 			bcode =  Bencode.new
 			message["v"] = "BT\x00\x01"
-			message["t"] = add_trans(message["q"], info_hash)
+			if is_boot then
+				message["t"] = "boot"
+			else
+				message["t"] = add_trans(message["q"], info_hash)
+			end
 			msg = bcode.encode(message)
 			sock.connect(@host, @port )
 			sock.send(msg, 0, @host, @port)
@@ -58,12 +81,11 @@ public
 			   "q" => "ping",
 			   "a" => {"id"=> id}
 		}
-
 		sendmessage(msg, sock)
 	end
 	
 
-	def find_node(sock, target_id, id)
+	def find_node(sock, target_id, id, is_boot)
 		msg = {
 			   "y" => "q",
 			   "q" => "find_node",
@@ -73,7 +95,7 @@ public
 			     		"target" => target_id
 				}
 		}
-		sendmessage(msg, sock)
+		sendmessage(msg, sock, nil, is_boot)
 	end
 
 	def get_peer(sock, info_hash, id)

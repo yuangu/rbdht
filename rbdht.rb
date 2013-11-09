@@ -1,6 +1,7 @@
 require File.expand_path(File.dirname(__FILE__) + '/peer')
 require File.expand_path(File.dirname(__FILE__) + '/bucketset')
 require "socket"
+require 'ipaddr'
 
 
 class RBDht
@@ -17,23 +18,91 @@ public
 		@bucketset = BucketSet.new
 	end
 
-	def bootstrap(host, port, target_id = "746385fe32b268d513d068f22c53c46d2eb34a5c" )
-		 id = target_id.to_a.pack('H*')
+	def bootstrap(host, port,id = nil ,target_id = "746385fe32b268d513d068f22c53c46d2eb34a5c" )
+		 target_id = target_id.to_a.pack('H*')
 		 peer = Peer.new(host, port)
-		 peer.find_node(@sock, id, @id)
+		 if id != nil then
+		 	@bucketset.insert(id, peer)
+		 end
+
+		10.times do
+		 	peer.find_node(@sock, target_id, @id, true)
+		 end
+	end
+
+	def recv
+		Thread.new {
+			while true do
+				 @bucketset.update(@sock, @id)
+				 sleep(10)
+			end
+		}
+		while true
+			ready = IO.select([@sock])
+        		readable = ready[0]
+			readable.each do |sock|
+		  	    data = sock.recvfrom(1024)
+			    handle(data)
+              end
+		end
 	end
 
 private
-	def repsondHandle(ret)
+
+	def find_nodeHandle(ret)
+			nodes = ret['r']['nodes'].unpack("H*").to_s
+			nnodes = nodes.length/(26*2)
+			nnodes.times do |i|
+				node = getNodes(nodes[i * 26*2 , 26*2])
+				bootstrap(node[1], node[2], node[0] )
+			end
+
+
+	end
+
+	def repsondHandle(ret, session)
 		puts ("repsond")
+		id = ret['r']["id"]
+		id = id.unpack("H*").to_s
+		peer = nil
+
+		if  @bucketset.hasKey(id) then
+			peer = @bucketset.getPeer(id)
+			peer.setLastTime
+		else
+			peer = Peer.new(session[3], session[1])
+			@bucketset.insert(id, peer)
+		end
+		
+	
+		if ret['t'] == "boot" then
+		  find_nodeHandle(ret)
+		else
+			type = peer. get_trans(ret['t'])
+			if type != nil then
+				if type["name"] == "ping" then
+					#do setLasetTime
+					p  "ping respond"
+				end
+				
+				if type["name"] == "find_node" then
+					 find_nodeHandle(ret)
+				end
+
+				if type["name"] == " get_peer" then
+					p "get_peer respond"
+				end
+
+			end
+		end		
 	end
 	
-	def erroHandle(ret)
+	def erroHandle(ret, session)
 		puts ("erro")
 
 	end
 
-	def requestHanel(ret)
+	def requestHanel(ret, session)
 		puts ("request")
 
 
@@ -42,29 +111,23 @@ private
 
 	def handle(data)
 	     ret = Bdecode.new.decode(data[0])
-	     case ret["y"]
-	        when "r" : repsondHandle(ret)
-		when "e":  erroHandle(ret)
-		when "q":  requestHanel(ret)
-		
-		
-
-
-
+	     type = ret["y"]
+		 if type == "r" then  repsondHandle(ret, data[1]) 
+		 elsif  type == "e" then  erroHandle(ret, data[1])
+		 elsif  type ==  "q" then requestHanel(ret, data[1])
 	     end
+	end
 
+	def getNodes(data)
+		peer = data[0, 20*2]
+		host = data[20*2, 4*2].hex
+		port = data[20*2 + 4*2 , 2*2].hex
+	 
+		host = IPAddr.new(host , Socket::AF_INET)
+
+		return [peer,  host.to_s, port]
 	end
-public
-	def recv
-		while true
-			ready = IO.select([@sock])
-        		readable = ready[0]
-			readable.each do |sock|
-		  	    data = sock.recvfrom(1024)
-			    handle(data)
-                        end
-		end
-	end
+
 	
 
 	
