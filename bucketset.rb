@@ -10,39 +10,19 @@ end
 
 class BucketSet
 	def initialize
-		@@set  = Array.new  
+		@@set  = Hash.new  
 	end	
 	
 	def getlength
-		return @@set.length
+		return @@set.size
 	end
 	
-	def insert(peer)
-		index = 0
-		@@set.each do |x|
-			if x.getid > peer.getid then
-				@@set.insert(index, peer)
-				break
-			end	
-		    index = index + 1
-		end
+	def insert(id, peer)
+             puts "insert " + id + "to bucketSet" 		
+	     @@set[id.to_i] = peer
 	end
 
-	def getbucket(peer, k = 8)
-		
-		if array.length <= k then
-			return @@set
-		end
-		
-		index = 0
-		@@set.each do |x|
-			if x.getid < peer.getid then
-				index = index + 1	
-			else
-					break
-			end	
-		end
-		return @@set[index, k]	
-
-	end
+	def hasKey(id)
+	     return 	@@set.has_key?(id)
+	end 
 end

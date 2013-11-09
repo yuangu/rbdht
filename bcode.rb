@@ -13,7 +13,7 @@ class Bencode
 	private 
 		def encode_auto(x)
 			case x.class.to_s 
-			   when "String":	encode_string(x)
+			   when "String":    encode_string(x)
 			   when "Fixnum":   encode_int(x)
 			   when "Hash"  :    encode_dict(x)
 			   when "Array" :    encode_list(x)
