@@ -26,5 +26,9 @@ end
 =end
 require File.expand_path(File.dirname(__FILE__) + '/rbdht')
 test = RBDht.new
-test.bootstrap( "67.215.242.139" , 6881)
-test.recv
+test.run
+while true
+ 	test.bootstrap( "67.215.242.139" , 6881)
+	sleep(60 * 1)
+	
+end

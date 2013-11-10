@@ -36,14 +36,21 @@ class BucketSet
 	end
 	
 	def update(sock, id)
+		delnum = 0
 		@@set.each do |k,v|
 			if v.isUpdate then
-				delete(k)				
+				delete(k)
+				delnum = delnum + 1				
 			else
 				v.ping(sock, id)
 			end
 		end
-
+		puts "now peer total num:" + getlength.to_s +  ",delete peer:" + delnum.to_s
 	end
-
+	
+	def boot(sock,target_id, id)
+		 @@set.each do |k,v|
+			v.find_node(@sock, target_id, @id, true)
+		 end
+	end
 end

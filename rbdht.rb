@@ -22,21 +22,33 @@ public
 		 target_id = target_id.to_a.pack('H*')
 		 peer = Peer.new(host, port)
 		 if id != nil then
-		 	@bucketset.insert(id, peer)
+		 	#@bucketset.insert(id, peer)
 		 end
 
-		10.times do
-		 	peer.find_node(@sock, target_id, @id, true)
-		 end
+		 peer.find_node(@sock, target_id, @id, true)
+		 
+		@bucketset. boot(@sock,target_id, @id) 
+	   
 	end
-
-	def recv
+	
+	def run 
 		Thread.new {
 			while true do
-				 @bucketset.update(@sock, @id)
-				 sleep(10)
+				 sleep(60 * 3)
+				 @bucketset.update(@sock, @id)				 
 			end
 		}
+
+		Thread.new {
+			recv
+		}
+	end
+		
+
+private
+	
+	def recv
+	
 		while true
 			ready = IO.select([@sock])
         		readable = ready[0]
@@ -46,8 +58,7 @@ public
               end
 		end
 	end
-
-private
+	
 
 	def find_nodeHandle(ret)
 			nodes = ret['r']['nodes'].unpack("H*").to_s

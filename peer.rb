@@ -18,7 +18,7 @@ class Peer
 	
 	def isUpdate
 		@trans.each do |k, v|
-			if Time.now.to_i - v["access_time"] > 20 then   #放弃20秒还没有返回的包
+			if Time.now.to_i - v["access_time"] > 60 then   #放弃20秒还没有返回的包
 				del_tarns(k)
 			end
 		end
@@ -70,6 +70,7 @@ class Peer
 				message["t"] = add_trans(message["q"], info_hash)
 			end
 			msg = bcode.encode(message)
+			puts "send " + message["q"] + " to " + @host + ":"+@port.to_s
 			sock.connect(@host, @port )
 			sock.send(msg, 0, @host, @port)
 		end		
