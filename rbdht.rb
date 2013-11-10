@@ -18,8 +18,14 @@ public
 		@bucketset = BucketSet.new
 	end
 
-	def bootstrap(host, port,id = nil ,target_id = "746385fe32b268d513d068f22c53c46d2eb34a5c" )
-		 target_id = target_id.to_a.pack('H*')
+	def bootstrap(host, port,id = nil ,target_id = nil )
+	
+		 if target_id == nil then
+			target_id = @id
+
+		 else
+				 target_id = target_id.to_a.pack('H*')
+		 end
 		 peer = Peer.new(host, port)
 		 if id != nil then
 		 	#@bucketset.insert(id, peer)
@@ -49,14 +55,15 @@ private
 	
 	def recv
 	
-		while true
-			ready = IO.select([@sock])
-        		readable = ready[0]
-			readable.each do |sock|
-		  	    data = sock.recvfrom(1024)
+		#while true
+		#	ready = IO.select([@sock])
+        #		readable = ready[0]
+		#	readable.each do |sock|
+		  	    data = @sock.recvfrom(1024)
 			    handle(data)
-              end
-		end
+				sleep(1)
+         #     end
+		#end
 	end
 	
 
@@ -72,7 +79,7 @@ private
 	end
 
 	def repsondHandle(ret, session)
-		puts ("repsond")
+		puts ("repsond " + session[3] + ":" + session[1] .to_s)
 		id = ret['r']["id"]
 		id = id.unpack("H*").to_s
 		peer = nil
@@ -126,6 +133,7 @@ private
 		 if type == "r" then  repsondHandle(ret, data[1]) 
 		 elsif  type == "e" then  erroHandle(ret, data[1])
 		 elsif  type ==  "q" then requestHanel(ret, data[1])
+		 else puts "unkown info type"
 	     end
 	end
 
