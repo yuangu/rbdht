@@ -1,56 +1,63 @@
 require File.expand_path(File.dirname(__FILE__) + '/peer')
 
-def  distancemetric(peerA, peerB)
-	ida = peerA.getid()
-    idb = peerB.getid()
-	
-	return ida ^ idb
-end
-
 
 class BucketSet
 	def initialize
-		@@set  = Hash.new  
+		@@set    = Hash.new 
+	    @@mutex  = Mutex.new
+		@info = {
+			"bad"  => 0,
+			"good" => 0,
+		}
 	end	
 	
 	def getlength
-		return @@set.size
+		@@mutex.synchronize do
+			return @@set.size
+		end
 	end
 	
 	def insert(id, peer)
-         puts "insert " + id + " to bucketSet" 		
-	     @@set[id] = peer
+		@@mutex.synchronize do
+        	 puts "insert " + id + " to bucketSet" 		
+	    	 @@set[id] = peer
+		end
 	end
 	
 	def delete(id)
-		puts "delect" + id + " at bucketSet"
-		@@set.delete(id)
+		@@mutex.synchronize do
+			puts "delect" + id + " at bucketSet"
+			@@set.delete(id)
+		end
 	end
 
 	def hasKey(id)
-	     return 	@@set.has_key?(id)
+		@@mutex.synchronize do
+	     	return @@set.has_key?(id)
+		end
 	end 
 
 	def getPeer(id)
+		@@mutex.synchronize do
 			return @@set[id]
+		end
 	end
 	
 	def update(sock, id)
-		delnum = 0
-		@@set.each do |k,v|
-			if v.isUpdate then
-				delete(k)
-				delnum = delnum + 1				
-			else
-				v.ping(sock, id)
+		goodnum = 0
+		badnum = 0
+		@@mutex.synchronize do
+			@@set.each do |k,v|
+				if  v.isbad then badnum = badnum + 1 else goodnum = goodnum + 1 end
 			end
 		end
-		puts "now peer total num:" + getlength.to_s +  ",delete peer:" + delnum.to_s
+		@info['bad'] = badnum
+		@info['good'] = goodnum
 	end
-	
-	def boot(sock,target_id, id)
-		 @@set.each do |k,v|
-			v.find_node(@sock, target_id, @id, true)
-		 end
+
+	def getinfo
+		return @info
 	end
+
+
 end

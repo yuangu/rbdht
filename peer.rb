@@ -1,6 +1,6 @@
 require 'socket'
 require File.expand_path(File.dirname(__FILE__) + '/bcode')
-
+require File.expand_path(File.dirname(__FILE__) + '/utils')
 
 class Peer
 
@@ -12,13 +12,59 @@ class Peer
 		setLastTime
 	end
    
+	 def sendmessage(message, sock, trans_id= nil, lock= nil)
+		if sock then			 
+			
+		 		bcode =  Bencode.new
+				message["v"] = get_version
+				if trans_id != nil then
+						message["t"] = trans_id
+				end
+
+				msg = bcode.encode(message)
+				puts "send " + message["q"] + " to " + @host + ":"+@port.to_s
+
+			if lock != nil then
+				lock.synchronize do
+					sock.connect(@host, @port )
+					sock.send(msg, 0, @host, @port)		
+				end
+			else
+				sock.connect(@host, @port )
+				sock.send(msg, 0, @host, @port)
+			end
+		end
+	end
+
+	 def get_trans_id(name, info_hash = nil)
+	 	@trans_id_pos[0] = @trans_id_pos[0] + 1
+	 	if @trans_id_pos[0] == 0xff then
+	    	 @trans_id_pos[0] = 0
+	    	 @trans_id_pos[1] = @trans_id_pos[1] + 1
+	     	if @trans_id_pos[1] == 0xff then
+			@trans_id_pos[1] = 0
+	     	end
+  	  	end
+	 	trans_id =  @trans_id_pos.pack("c*")
+
+
+		 @trans[trans_id] = {
+		"name" => name,
+		"info_hash" => info_hash,
+		"access_time" => Time.now.to_i
+		}
+	 	return trans_id
+	 end
+
+
 	def setLastTime 
 		@lastTime = Time.now.to_i #上次通信时间
 	end
-	
-	def isUpdate
+
+
+	def isbad
 		@trans.each do |k, v|
-			if Time.now.to_i - v["access_time"] > 60 then   #放弃20秒还没有返回的包
+			if Time.now.to_i - v["access_time"] > 60 then   #放弃60秒还没有返回的包
 				del_tarns(k)
 			end
 		end
@@ -27,15 +73,6 @@ class Peer
 	end
 
 
-     def  add_trans(name, info_hash = nil)		
-	trans_id = get_trans_id
-        @trans[trans_id] = {
-		"name" => name,
-		"info_hash" => info_hash,
-		"access_time" => Time.now.to_i
-	}
-        return trans_id
-     end
 	
 	def get_trans(trans_id )
 			ret =	@trans[trans_id]
@@ -47,70 +84,80 @@ class Peer
 	@trans.delete(trans_id)
      end
 
-     def get_trans_id
-	 @trans_id_pos[0] = @trans_id_pos[0] + 1
-	 if @trans_id_pos[0] == 0xff then
-	     @trans_id_pos[0] = 0
-	     @trans_id_pos[1] = @trans_id_pos[1] + 1
-	     if @trans_id_pos[1] == 0xff then
-		@trans_id_pos[1] = 0
-	     end
-  	  end
-
-	 return @trans_id_pos.pack("c*")
-     end
-
-     def sendmessage(message, sock, info_hash = nil, is_boot = false)
-		if sock then
-			bcode =  Bencode.new
-			message["v"] = "BT\x00\x01"
-			if is_boot then
-				message["t"] = "boot"
-			else
-				message["t"] = add_trans(message["q"], info_hash)
-			end
-			msg = bcode.encode(message)
-			puts "send " + message["q"] + " to " + @host + ":"+@port.to_s
-			sock.connect(@host, @port )
-			sock.send(msg, 0, @host, @port)
-		end		
+	def setToken(token)
+		@token = token
 	end
+
 public
-	def ping(sock, id)  
+	def ping(sock, sender_id, lock = nil)  
+		trans_id =  get_trans_id("ping")			
 		msg = { 
 		       "y" => "q",
 			   "q" => "ping",
-			   "a" => {"id"=> id}
+			   "a" => {"id"=> sender_id}
 		}
-		sendmessage(msg, sock)
+		sendmessage(msg, sock, trans_id, lock)
 	end
 	
+	def pong(sock, trans_id, sender_id, lock)
+		msg = {
+			"y" => "r",
+			"r" => {
+				"id" => sender_id,
+			}	
+		}
+		sendmessage(msg, sock, trans_id, lock)
+	end
 
-	def find_node(sock, target_id, id, is_boot)
+
+	def find_node(sock, target_id, sender_id, lock, trans_id = nil)
+		if trans_id == nil then
+		   trans_id =  get_trans_id("find_node")
+		end
 		msg = {
 			   "y" => "q",
 			   "q" => "find_node",
 			   "a" => 
 				{
-						"id" => id,
+						"id" => sender_id,
 			     		"target" => target_id
 				}
 		}
-		sendmessage(msg, sock, nil, is_boot)
+		sendmessage(msg, sock, trans_id, lock)
 	end
 
-	def get_peer(sock, info_hash, id)
-		msg = {"t" => "aa",
+	def fond_node(sock, found_nodes, trans_id = nil, sender_id = nil, lock = nil)
+	
+
+	end
+
+
+
+	def get_peers(sock, info_hash, sender_id)
+		trans_id =  get_trans_id("get_peers")
+		msg = {
 		       "y" => "q",
 			   "q" => "get_peers",
-			   "a" => {"id" => id,
+			   "a" => {"id" => sender_id,
 			   "info_hash" => info_hash
 				}
 		}
-		sendmessage(msg, sock, info_hash)
+		sendmessage(msg, sock, trans_id, lock)
+	end
+
+
+	def got_peers()
+
+
+
 	end
 	
 	def announce_peer(sock, id)
 
 	end
+
+	def announced_peer(sock, id)
+
+	end
+
 end
