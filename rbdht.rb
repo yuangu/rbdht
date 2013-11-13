@@ -1,5 +1,6 @@
 require File.expand_path(File.dirname(__FILE__) + '/peer')
 require File.expand_path(File.dirname(__FILE__) + '/bucketset')
+require File.expand_path(File.dirname(__FILE__) + '/utils')
 require "socket"
 require 'ipaddr'
 
@@ -55,9 +56,16 @@ private
 				ready = IO.select([@@sock])
         		readable = ready[0]
 				readable.each do |sock|
-		  	    	#data = sock.recvfrom(2048)
+					#data = sock.recvfrom(2048)
+				begin  
 			    	data = sock.recvfrom_nonblock(2048)
-              	end
+              	rescue
+					puts "error:#{$!} at:#{$@}"
+				ensure
+					next
+				end
+
+				end
 			end
 			#防止出现锁嵌套造成的死锁
 			if data != nil then
@@ -67,11 +75,15 @@ private
 	end	
 
 	def find_nodeHandle(ret)
-			nodes = ret['r']['nodes'].unpack("H*").to_s
+			nodes = ret['r']['nodes']
+			if nodes == nil then return end
+			nodes = nodes.unpack("H*").to_s
 			nnodes = nodes.length/(26*2)
 			nnodes.times do |i|
 				node = getNodes(nodes[i * 26*2 , 26*2])
-				bootstrap(node[1], node[2], node[0] )
+				if @@bucketset.getlength < 1000 then
+					bootstrap(node[1], node[2])
+				end
 			end
 
 
@@ -138,13 +150,52 @@ private
 
 	def requestHanel(ret, session)
 		puts ("request")
+		type = ret["q"]
+		id = ret["a"]['id']
+		id = id.unpack("H*").to_s
+		trans_id =  ret["t"]
+		if trans_id == nil or id == nil  then return end
+
+		peer = nil
+		if  @@bucketset.hasKey(id) then
+			peer = @@bucketset.getPeer(id)
+			peer.setLastTime
+		else
+			peer = Peer.new(session[3], session[1])
+			@@bucketset.insert(id, peer)
+		end
+
+		
+
+		if type == "ping" then
+			peer.pong(@@sock,  trans_id, @id, @@lock)
+			p "ping request"
+		elsif type == "find_node" then
+			nodes = @@bucketset.getnodes
+			peer.fond_node(@@sock, nodes, trans_id, @id, @@lock)
+		#	peer.pong(sock,  trans_id, @id, @@lock)
+			p "find_node request"
+		elsif type == "get_peers" then
+			p "get_peers request"
+			nodes = @@bucketset.getnodes
+			token = get_token
+			peer.got_peers(@@sock, trans_id, @id , token, nil, nodes, @@lock)
 
 
+		elsif type == "announce_peer" then
+			p "announce_peer request"
+		else puts "unkown info type"
+		
+		end
 	end
 
 
 	def handle(data)
 	     ret = Bdecode.new.decode(data[0])
+		 if ret == nil then return end
+		 if ret['v'] != nil then p "the clients version is " + ret['v'] end
+		
+
 	     type = ret["y"]
 		 if type == "r" then  repsondHandle(ret, data[1]) 
 		 elsif  type == "e" then  erroHandle(ret, data[1])

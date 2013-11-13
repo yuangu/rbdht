@@ -1,3 +1,7 @@
 def get_version
-	return "BT\x00\x01"
+	return "rbdht\x00\x01"
+end
+
+def get_token
+	return "rbdht"
 end

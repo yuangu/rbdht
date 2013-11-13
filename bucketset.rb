@@ -1,3 +1,4 @@
+require 'ipaddr'
 require File.expand_path(File.dirname(__FILE__) + '/peer')
 
 
@@ -12,9 +13,11 @@ class BucketSet
 	end	
 	
 	def getlength
+		size = 0
 		@@mutex.synchronize do
-			return @@set.size
+			size = @@set.size
 		end
+		return size
 	end
 	
 	def insert(id, peer)
@@ -32,15 +35,19 @@ class BucketSet
 	end
 
 	def hasKey(id)
+		ishas = false
 		@@mutex.synchronize do
-	     	return @@set.has_key?(id)
+	     	ishas = @@set.has_key?(id)
 		end
+		return ishas
 	end 
 
 	def getPeer(id)
+		peer = nil 
 		@@mutex.synchronize do
-			return @@set[id]
+			peer = @@set[id]
 		end
+		return peer
 	end
 	
 	def update(sock, id)
@@ -57,6 +64,20 @@ class BucketSet
 
 	def getinfo
 		return @info
+	end
+	
+	def getnodes(k=8)
+		nodes = ""
+		@@mutex.synchronize do
+			@@set.each do |k, v|
+				nodes = nodes +	k.to_a.pack('H*')
+				info = v.getinfo
+				ip_int = IPAddr.new(info['host']).to_i
+				nodes = nodes + [ip_int].pack("i*")
+				nodes = nodes + [info['port']].pack("s")
+			end
+		end
+		return nodes
 	end
 
 

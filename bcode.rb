@@ -59,9 +59,16 @@ end
 
 class Bdecode
 	def decode(x)
-		@pos = 0
-		@x = x
-		return decode_auto()
+		ret = nil
+		 begin
+			@pos = 0
+			@x = x
+			ret = decode_auto()
+		rescue
+			puts "error:#{$!} at:#{$@}"
+		ensure
+			return ret
+		end	
 	end
 
 
@@ -102,12 +109,18 @@ class Bdecode
 			while len < (@x.length - @pos) and not @x[@pos + len, 1] == ":" do
 				len = len + 1
 			end
-			len = @x[@pos, len]
-    		@pos = @pos + len.length + 1
-			len = Integer(len)
-			ret = @x[@pos, len]
-			@pos = @pos + len
-			return ret
+			if len == 0 then 
+				@pos = @pos  + 1
+				return ""
+			else
+				len = @x[@pos, len]
+    			@pos = @pos + len.length + 1
+				len = Integer(len)
+				ret = @x[@pos, len]
+				@pos = @pos + len
+				return ret
+			end
+		
 		end
 	
 		def decode_list()

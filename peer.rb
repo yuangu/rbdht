@@ -11,7 +11,16 @@ class Peer
 		@trans_id_pos = [00, 00]
 		setLastTime
 	end
-   
+   	
+	 def getinfo 
+			
+			 info =  	{
+				"host" => @host,
+				"port" => @port,
+				}
+			 return info
+	 end
+
 	 def sendmessage(message, sock, trans_id= nil, lock= nil)
 		if sock then			 
 			
@@ -22,15 +31,15 @@ class Peer
 				end
 
 				msg = bcode.encode(message)
-				puts "send " + message["q"] + " to " + @host + ":"+@port.to_s
+				#puts "send " + message["q"] + " to " + @host + ":"+@port.to_s
 
 			if lock != nil then
 				lock.synchronize do
-					sock.connect(@host, @port )
+					#sock.connect(@host, @port )
 					sock.send(msg, 0, @host, @port)		
 				end
 			else
-				sock.connect(@host, @port )
+				#sock.connect(@host, @port )
 				sock.send(msg, 0, @host, @port)
 			end
 		end
@@ -127,13 +136,19 @@ public
 	end
 
 	def fond_node(sock, found_nodes, trans_id = nil, sender_id = nil, lock = nil)
-	
-
+		 msg = {
+			 "y" => "r",
+			 "r" => {
+					    "id" => sender_id,
+					    "nodes" => found_nodes
+		 			}
+		 }
+		 sendmessage(msg, sock, trans_id, lock)
 	end
 
 
 
-	def get_peers(sock, info_hash, sender_id)
+	def get_peers(sock, info_hash, sender_id, lock)
 		trans_id =  get_trans_id("get_peers")
 		msg = {
 		       "y" => "q",
@@ -146,10 +161,22 @@ public
 	end
 
 
-	def got_peers()
-
-
-
+	def got_peers(sock, trans_id, sender_id , token, values, nodes, lock)
+		
+		msg = {  "y" => "r",
+		 		 "r" => 
+				{"id" => sender_id,
+			 	 "token" => token
+				}
+			}
+		if values != nil then 
+			msg["values"] = values
+		else 
+			if nodes != nil then
+				msg["nodes"] = nodes
+			end
+		end
+		sendmessage(msg, sock, trans_id, lock)
 	end
 	
 	def announce_peer(sock, id)
