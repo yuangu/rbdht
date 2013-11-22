@@ -3,7 +3,7 @@ require File.expand_path(File.dirname(__FILE__) + '/bucketset')
 require File.expand_path(File.dirname(__FILE__) + '/utils')
 require "socket"
 require 'ipaddr'
-
+require 'thread'
 
 class RBDht
 public	
