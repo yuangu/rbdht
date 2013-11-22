@@ -70,7 +70,7 @@ class BucketSet
 		nodes = ""
 		@@mutex.synchronize do
 			@@set.each do |k, v|
-				nodes = nodes +	k.to_a.pack('H*')
+				nodes = nodes +	strToHex(k)
 				info = v.getinfo
 				ip_int = IPAddr.new(info['host']).to_i
 				nodes = nodes + [ip_int].pack("i*")

@@ -6,8 +6,17 @@ def get_token
 	return "rbdht"
 end
 
-def toHexStr(hex)
-     return hex.to_a.pack("H*")	
+#二进制序列转换成字符形式
+def hexToStr(hex)
+     return hex.unpack("H*")[0]
 end
 
+def strToHex(str)
+    return [str].pack("H*")
+
+end
+
+
+
+p strToHex "1989"
 

@@ -14,7 +14,7 @@ public
 		@@sock.bind(host, port)
 	
 		if id != nil then
-			@id = id.to_a.pack('H*')
+			@id = strToHex(id)
 		else
 			@id = randId
 		end
@@ -26,13 +26,13 @@ public
 		 if target_id == nil then
 			target_id = @id
 		 else
-			target_id = target_id.to_a.pack('H*')
+			target_id = strToHex(target_id)
 		 end
 
 		 peer = Peer.new(host, port)
 		 if id != "bootstrap" then
 		 	@@bucketset.insert(id, peer)
-	     end		 
+	     	end		 
 
 		 peer.find_node(@@sock, target_id, @id, @@lock,  "bootstrap")   
 	end
@@ -77,7 +77,7 @@ private
 	def find_nodeHandle(ret)
 			nodes = ret['r']['nodes']
 			if nodes == nil then return end
-			nodes = nodes.unpack("H*").to_s
+			nodes = hexToStr(nodes) 
 			nnodes = nodes.length/(26*2)
 			nnodes.times do |i|
 				node = getNodes(nodes[i * 26*2 , 26*2])
@@ -104,7 +104,7 @@ private
 		puts ("repsond " + session[3] + ":" + session[1] .to_s)
 	
 		id = ret['r']["id"]
-		id = id.unpack("H*").to_s
+		id = hexToStr(id) 
 		peer = nil
 
 		if  @@bucketset.hasKey(id) then
@@ -152,7 +152,7 @@ private
 		puts ("request")
 		type = ret["q"]
 		id = ret["a"]['id']
-		id = id.unpack("H*").to_s
+		id = hexToStr(id)
 		trans_id =  ret["t"]
 		if trans_id == nil or id == nil  then return end
 
