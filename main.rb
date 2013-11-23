@@ -26,5 +26,33 @@ end
 =end
 require File.expand_path(File.dirname(__FILE__) + '/rbdht')
 test = RBDht.new
+test.setHook("ping", def func(host, port)   p host + ":"+ port + " ping"  end )
+
+=begin
+findnodeHook = def func(host, port, nodes)
+	str = host + ":"+ port + "find_node"
+ =begin
+	nodes.each { |node|
+		str = str + node[0] + " " + node[1] + ":" + node[2] + "\n"
+
+	}
+ =end
+	p str
+end
+test.setHook("find_node", findnodeHook)
+=end
+
+gotpeerHook = def func(host, port, infohash)
+	str = host + ":"+ port + " got_peers"
+	p str 
+	#p infohash.class
+	p infohash
+	p  "infohash:" + infohash
+	fh = File.new("temp.out", "a")
+	fh.write( host+ ":"+ port + " " + infohash + "\r\n")
+	fh.close
+end
+test.setHook("got_peers", gotpeerHook)
+
 test.bootstrap( "67.215.242.139" , 6881)
 test.run

@@ -9,6 +9,7 @@ class RBDht
 public	
 	def initialize(host = "0.0.0.0", port = 9002, id = nil)
 		BasicSocket.do_not_reverse_lookup = true
+		@@hook =  Hash.new 
 		@@lock  = Mutex.new
 		@@sock = UDPSocket.open
 		@@sock.bind(host, port)
@@ -46,6 +47,12 @@ public
 	
 	end
 	
+	def setHook(msgType, func)
+		if  @@hook[msgType]  == nil then 
+			@@hook[msgType] = []
+		end
+			@@hook[msgType].insert(-1, func)
+	end
 
 private
 	
@@ -75,19 +82,29 @@ private
 		end
 	end	
 
-	def find_nodeHandle(ret)
+	def find_nodeHandle(ret, session)
 			nodes = ret['r']['nodes']
 			if nodes == nil then return end
 			nodes = hexToStr(nodes) 
 			nnodes = nodes.length/(26*2)
+
+			nodeset = []
 			nnodes.times do |i|
 				node = getNodes(nodes[i * 26*2 , 26*2])
 				if @@bucketset.getlength < 1000 then
 					bootstrap(node[1], node[2])
 				end
+				node[2] = node[2].to_s
+				nodeset.insert(-1, node)
 			end
 
-
+			hookFunc = @@hook["find_node"] 
+			if hookFunc  != nil then
+					hookFunc.each do
+						|func|
+						func(session[3], session[1].to_s, nodeset)
+					end	
+			end
 	end
 	
 	def get_peerHandle(peer, ret)
@@ -127,12 +144,19 @@ private
 		if type != nil then
 			if type["name"] == "ping" then
 					#do setLasetTime
-				p  "ping respond"
+				hookFunc = @@hook["ping"] 
+				if hookFunc  != nil then
+					hookFunc.each do
+						|func|
+						func(session[3], session[1] .to_s)
+					end	
+				end
+
 			end
 				
 			if type["name"] == "find_node" then
 				 p  "find_node respond"
-				 find_nodeHandle(ret)
+				 find_nodeHandle(ret, session)
 			end
 
 			if type["name"] == "get_peer" then
@@ -177,10 +201,25 @@ private
 		#	peer.pong(sock,  trans_id, @id, @@lock)
 			p "find_node request"
 		elsif type == "get_peers" then
-			p "get_peers request"
+			infoHash = ret["a"]['info_hash']
+
+			#p "get_peers request"
 			nodes = @@bucketset.getnodes
 			token = get_token
 			peer.got_peers(@@sock, trans_id, @id , token, nil, nodes, @@lock)
+
+			if infoHash != nil then
+
+				hookFunc = @@hook["got_peers"] 
+				if hookFunc  != nil then
+					hookFunc.each do
+						|func|
+						func(session[3], session[1].to_s, hexToStr(infoHash) )
+					end	
+				end
+			end
+
+
 
 
 		elsif type == "announce_peer" then
