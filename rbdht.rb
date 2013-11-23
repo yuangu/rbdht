@@ -53,7 +53,8 @@ private
 		loop do
 			data = nil
 			@@lock.synchronize do
-				ready = IO.select([@@sock])
+				ready = IO.select([@@sock], nil, nil, 1)
+				if not ready then next end
         		readable = ready[0]
 				readable.each do |sock|
 					#data = sock.recvfrom(2048)
